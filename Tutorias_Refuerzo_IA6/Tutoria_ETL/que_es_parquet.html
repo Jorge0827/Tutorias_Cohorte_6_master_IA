@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Qué es Parquet — Tutoría ETL</title>
+  <style>
+    :root {
+      --ink: #1c1917;
+      --muted: #57534e;
+      --paper: #f6f1e8;
+      --card: #fffdf8;
+      --line: #e7e0d4;
+      --teal: #0f766e;
+      --teal-soft: #ccfbf1;
+      --amber: #b45309;
+      --amber-soft: #ffedd5;
+      --csv: #9a3412;
+      --parq: #0f766e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.6;
+    }
+
+    header {
+      background: var(--ink);
+      color: #fafaf9;
+      padding: 2.4rem 1.4rem 2rem;
+    }
+
+    header .wrap,
+    main,
+    footer {
+      max-width: 880px;
+      margin: 0 auto;
+    }
+
+    .kicker {
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      color: #a8a29e;
+      margin: 0 0 0.6rem;
+    }
+
+    h1 {
+      margin: 0 0 0.6rem;
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      line-height: 1.15;
+    }
+
+    header p {
+      margin: 0;
+      max-width: 38rem;
+      color: #d6d3d1;
+    }
+
+    main { padding: 2rem 1.4rem 4rem; }
+
+    h2 {
+      margin: 2.2rem 0 0.7rem;
+      font-size: 1.35rem;
+    }
+
+    h3 {
+      margin: 1.4rem 0 0.5rem;
+      font-size: 1.05rem;
+    }
+
+    p, li { color: var(--ink); }
+
+    .lead {
+      font-size: 1.15rem;
+      color: var(--muted);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.1rem 1.2rem;
+      margin: 1rem 0;
+    }
+
+    .highlight {
+      border-left: 4px solid var(--teal);
+      padding-left: 1rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .fmt {
+      border-top: 4px solid var(--csv);
+    }
+
+    .fmt.parquet { border-top-color: var(--parq); }
+
+    .fmt h3 { margin-top: 0.2rem; }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    .tag.csv { background: var(--amber-soft); color: var(--csv); }
+    .tag.parquet { background: var(--teal-soft); color: var(--teal); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.7rem 0.85rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th { background: #efe8dc; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .visual {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 700px) {
+      .visual { grid-template-columns: 1fr; }
+    }
+
+    .block-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 0 0 0.6rem;
+      color: var(--muted);
+    }
+
+    .row-store, .col-store {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .row {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 6px;
+      padding: 0.35rem 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .col {
+      background: #f0fdfa;
+      border: 1px solid #99f6e4;
+      border-radius: 6px;
+      padding: 0.35rem 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+
+    pre {
+      background: #1c1917;
+      color: #f5f5f4;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    code {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.88em;
+      background: #efe8dc;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    .kw { color: #5eead4; }
+    .fn { color: #fbbf24; }
+    .str { color: #fdba74; }
+    .cm { color: #a8a29e; }
+
+    ol.flow {
+      padding-left: 1.2rem;
+    }
+
+    ol.flow li { margin-bottom: 0.45rem; }
+
+    footer {
+      padding: 0 1.4rem 2.5rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <p class="kicker">Tutoría ETL · Cohorte 6</p>
+      <h1>Qué es Parquet y cómo se usa de verdad</h1>
+      <p>Misma tabla que un CSV, otro formato de archivo. Pensado para análisis, no para abrirlo en Excel.</p>
+    </div>
+  </header>
+
+  <main>
+    <p class="lead">
+      <strong>Parquet</strong> es un formato de archivo para guardar tablas.
+      CSV guarda por <em>filas en texto</em>. Parquet guarda por <em>columnas en binario comprimido</em>.
+    </p>
+
+    <div class="card highlight">
+      En una frase para la clase: Parquet no es otra tabla. Es otra forma de guardar la misma tabla
+      (<code>df_norm</code>) para que el siguiente análisis sea más rápido y no pierda los tipos.
+    </div>
+
+    <h2>1. Analogía</h2>
+    <div class="grid">
+      <article class="card fmt">
+        <span class="tag csv">CSV</span>
+        <h3>Fotocopia de la hoja</h3>
+        <p>Cualquiera la lee: Excel, Bloc de notas, Google Sheets. Es pesada y se pierde el “formato”: las fechas vuelven a texto.</p>
+      </article>
+      <article class="card fmt parquet">
+        <span class="tag parquet">Parquet</span>
+        <h3>Archivo del sistema de datos</h3>
+        <p>No se abre “a ojo”. Llega más compacto, recuerda que salario es número y fecha es fecha, y puede leer solo las columnas que pides.</p>
+      </article>
+    </div>
+
+    <h2>2. Filas vs columnas</h2>
+    <p>Imagina tres empleados con <code>nombre</code>, <code>depto</code> y <code>salario</code>.</p>
+
+    <div class="visual">
+      <div class="card">
+        <p class="block-title">CSV — guarda fila completa</p>
+        <div class="row-store">
+          <div class="row">Ana García | Ventas | 4500</div>
+          <div class="row">Carlos Lopez | Ventas | 3200</div>
+          <div class="row">Valentina Cruz | TI | 7200</div>
+        </div>
+        <p>Si solo quieres el promedio de salario, igual tienes que leer nombre y departamento.</p>
+      </div>
+      <div class="card">
+        <p class="block-title">Parquet — guarda cada columna junta</p>
+        <div class="col-store">
+          <div class="col">nombres: Ana, Carlos, Valentina</div>
+          <div class="col">deptos: Ventas, Ventas, TI</div>
+          <div class="col">salarios: 4500, 3200, 7200</div>
+        </div>
+        <p>Puedes leer <em>solo</em> salarios. Por eso en un data lake Parquet gana a CSV.</p>
+      </div>
+    </div>
+
+    <h2>3. Qué ganas (y qué pierdes)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>CSV</th>
+          <th>Parquet</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Se abre en Excel</td>
+          <td>Sí</td>
+          <td>No (hace falta pandas, Spark, Power BI, etc.)</td>
+        </tr>
+        <tr>
+          <td>Conserva tipos</td>
+          <td>No. <code>fecha_ingreso</code> vuelve a texto</td>
+          <td>Sí. Sigue siendo <code>datetime</code></td>
+        </tr>
+        <tr>
+          <td>Tamaño</td>
+          <td>Más pesado (texto)</td>
+          <td>Más liviano (columnar + compresión)</td>
+        </tr>
+        <tr>
+          <td>Lectura selectiva</td>
+          <td>Lee el archivo entero</td>
+          <td>Puede leer solo algunas columnas</td>
+        </tr>
+        <tr>
+          <td>Dependencia</td>
+          <td>Ninguna</td>
+          <td>En pandas: <code>pyarrow</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. Cómo se usa en un entorno real</h2>
+    <p>En la empresa casi nadie deja el resultado limpio “solo en el notebook”. El Load escribe un archivo (o una tabla) que <em>otro sistema</em> consume.</p>
+
+    <h3>El flujo típico</h3>
+    <ol class="flow">
+      <li><strong>Extract:</strong> CSV sucios, API, base transaccional.</li>
+      <li><strong>Transform:</strong> limpiar, tipar, validar (tu <code>df_norm</code>).</li>
+      <li><strong>Load a Parquet:</strong> se guarda en un <em>data lake</em> (carpeta en S3, GCS, Azure, o un disco local).</li>
+      <li><strong>Consumo:</strong> Spark, pandas, Power BI, BigQuery, un modelo de ML leen ese Parquet. Nadie vuelve al CSV crudo.</li>
+    </ol>
+
+    <div class="card">
+      <strong>Dónde lo vas a ver escrito:</strong>
+      <ul>
+        <li><code>s3://empresa-lake/gold/empleados/anio=2024/mes=03/part.parquet</code></li>
+        <li>Databricks / Spark: <code>spark.read.parquet("...")</code></li>
+        <li>AWS Athena y Google BigQuery pueden consultar Parquet sin cargarlo a una base clásica</li>
+        <li>Power BI y Tableau también saben leer Parquet</li>
+      </ul>
+      Esa ruta con <code>anio=</code> y <code>mes=</code> se llama <strong>partición</strong>: no lees 5 años si solo pides marzo.
+    </div>
+
+    <h3>Por qué el data lake prefiere Parquet y no CSV</h3>
+    <p>
+      Un lago puede tener millones de filas. Preguntar “salario promedio de TI en Colombia”
+      sobre CSV obliga a leer todo el texto. Sobre Parquet el motor abre la columna
+      <code>salario</code> (y a veces solo los archivos de esa partición).
+      Menos red, menos disco, menos plata en la nube.
+    </p>
+
+    <h2>5. En nuestro ETL (pandas)</h2>
+    <p>Es el mismo DataFrame. Cambia el destino del Load.</p>
+<pre><code><span class="cm"># Escribir — fase Load</span>
+df_norm.to_parquet(<span class="str">"output/empleados_limpios.parquet"</span>, index=<span class="kw">False</span>)
+
+<span class="cm"># Leer — el analista o el modelo, al día siguiente</span>
+df = pd.read_parquet(<span class="str">"output/empleados_limpios.parquet"</span>)
+
+<span class="cm"># En un lago grande: solo las columnas que importan</span>
+df = pd.read_parquet(
+    <span class="str">"output/empleados_limpios.parquet"</span>,
+    columns=[<span class="str">"departamento"</span>, <span class="str">"salario"</span>]
+)</code></pre>
+
+    <div class="card highlight">
+      Necesitas <code>pip install pyarrow</code> (o <code>fastparquet</code>).
+      Si no está, <code>to_parquet</code> falla. El CSV sigue siendo un Load válido para entregar a Excel.
+    </div>
+
+    <h2>6. Cuándo usar cada uno</h2>
+    <div class="grid">
+      <article class="card">
+        <h3>Usa CSV cuando…</h3>
+        <ul>
+          <li>Lo va a abrir una persona en Excel</li>
+          <li>Es una entrega pequeña (decenas o cientos de filas)</li>
+          <li>El receptor no tiene pandas / Spark</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3>Usa Parquet cuando…</h3>
+        <ul>
+          <li>El siguiente paso es análisis o ML</li>
+          <li>Importan los tipos (fechas, booleanos)</li>
+          <li>El archivo va a un data lake o se va a leer muchas veces</li>
+        </ul>
+      </article>
+    </div>
+
+    <h2>7. Lo que deben recordar</h2>
+    <ol class="flow">
+      <li>Parquet = tabla columnar comprimida, no una base de datos.</li>
+      <li>CSV intercambia; Parquet analiza.</li>
+      <li>En el Load de este curso: misma <code>df_norm</code>, dos archivos en <code>output/</code>.</li>
+      <li>En la empresa: Parquet en el lago (gold) es el entregable que consume BI y ML.</li>
+    </ol>
+  </main>
+
+  <footer>
+    Material de refuerzo · Tutoria ETL · No reemplaza ejecutar el notebook: ábranlo, guarden y relean
+    <code>fecha_ingreso</code> en CSV vs Parquet.
+  </footer>
+</body>
+</html>
